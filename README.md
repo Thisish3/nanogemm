@@ -1,6 +1,8 @@
 # hxgemm
 
-FP32 SGEMM(C = αAB + βC, 행 우선)을 naive부터 cp.async 파이프라인까지 다섯 단계로 직접 만들고, 같은 조건에서 cuBLAS와 비교한 프로젝트(G1). 단계마다 "바꾼 코드 → 바뀐 Nsight 지표 → 바뀐 GFLOPS"를 측정으로 남긴다.
+GPU에서 행렬곱(FP32 SGEMM, C = αAB + βC)을 가장 단순한 버전부터 다섯 단계로 직접 짜 보고, NVIDIA의 cuBLAS와 같은 조건에서 비교한 프로젝트입니다. RTX 3060 Ti, 4096×4096 행렬에서 마지막 버전은 8,775 GFLOPS로 cuBLAS의 94.4 %까지 왔습니다.
+
+단계마다 코드를 무엇을 바꿨는지, Nsight 지표가 어떻게 바뀌었는지, 그래서 속도가 얼마나 달라졌는지를 함께 남겼습니다. 처음 세운 가설이 틀린 단계(shared memory tiling이 1.32배에 그친 이유)도 그대로 적었습니다.
 
 <p align="center"><img src="docs/images/hxgemm_ladder.png" alt="다섯 단계 GFLOPS: k01 109, k02 808, k03 1,063, k04 8,231, k05 8,775 (cuBLAS 9,298의 94.4 %)" width="800"></p>
 
