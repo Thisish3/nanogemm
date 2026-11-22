@@ -20,8 +20,8 @@
 
 <p align="center">
   <a href="#빌드와-실행"><b>빌드와 실행</b></a> ·
-  <a href="#결과-rtx-3060-ti-4096³-sm-1500-mhz-고정"><b>결과</b></a> ·
-  <a href="#단계별-nsight-지표-4096³-기본-타일"><b>Nsight 지표</b></a> ·
+  <a href="#결과-rtx-3060-ti-4096-sm-1500-mhz-고정"><b>결과</b></a> ·
+  <a href="#단계별-nsight-지표-4096-기본-타일"><b>Nsight 지표</b></a> ·
   <a href="#구조"><b>구조</b></a> ·
   <a href="https://thisish3.tistory.com/category/%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/nanogemm"><b>블로그</b></a>
 </p>
