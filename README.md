@@ -1,17 +1,67 @@
-# nanogemm
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
+    <img src="docs/assets/logo-light.svg" alt="nanogemm" width="64">
+  </picture>
+</p>
 
-GPU에서 행렬곱(FP32 SGEMM, C = αAB + βC)을 가장 단순한 버전부터 다섯 단계로 직접 짜 보고, NVIDIA의 cuBLAS와 같은 조건에서 비교한 프로젝트입니다. RTX 3060 Ti, 4096×4096 행렬에서 마지막 버전은 8,775 GFLOPS로 cuBLAS의 94.4 %까지 왔습니다.
+<h1 align="center">nanogemm</h1>
 
-단계마다 코드를 무엇을 바꿨는지, Nsight 지표가 어떻게 바뀌었는지, 그래서 속도가 얼마나 달라졌는지를 함께 남겼습니다. 처음 세운 가설이 틀린 단계(shared memory tiling이 1.32배에 그친 이유)도 그대로 적었습니다.
+<p align="center">
+  <b>FP32 행렬곱(SGEMM) CUDA 커널을 다섯 단계로 직접 짜서 cuBLAS의 94.4 %까지.</b><br>
+  RTX 3060 Ti, 4096×4096에서 109 → 8,775 GFLOPS. 단계마다 무엇을 바꿨고 Nsight 지표가 어떻게 달라졌는지 함께 남겼습니다.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/CUDA-12.2-76B900" alt="CUDA 12.2">
+  <img src="https://img.shields.io/badge/GPU-RTX%203060%20Ti%20(sm__86)-555" alt="RTX 3060 Ti">
+  <img src="https://img.shields.io/badge/vs%20cuBLAS-94.4%25-2ea44f" alt="94.4% of cuBLAS">
+</p>
+
+<p align="center">
+  <a href="#빌드와-실행"><b>빌드와 실행</b></a> ·
+  <a href="#결과-rtx-3060-ti-4096³-sm-1500-mhz-고정"><b>결과</b></a> ·
+  <a href="#단계별-nsight-지표-4096³-기본-타일"><b>Nsight 지표</b></a> ·
+  <a href="#구조"><b>구조</b></a> ·
+  <a href="https://thisish3.tistory.com/category/%ED%94%84%EB%A1%9C%EC%A0%9D%ED%8A%B8/nanogemm"><b>블로그</b></a>
+</p>
+
+> [!NOTE]
+> 행렬곱 커널이 왜 빨라지는지 이해하려고 만든 공부용 프로젝트입니다. 숫자는 모두 GPU 한 장(RTX 3060 Ti, SM 1500 MHz 고정)에서 잰 것입니다.
+
+## 빠른 시작
+
+```bash
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build
+NVIDIA_TF32_OVERRIDE=0 ./build/nanogemm_bench --kernel all --shape 4096,4096,4096
+```
+
+PyTorch에서는 확장을 설치한 뒤 이렇게 씁니다(자세한 설치는 [빌드와 실행](#빌드와-실행)).
+
+```python
+import torch, nanogemm_ext
+c = torch.ops.nanogemm.sgemm(a, b, 5, [])   # 5 = k05, [] = 기본 타일, a·b: CUDA float32 텐서
+```
+
+## 담은 것
+
+- 다섯 단계 커널: 가장 단순한 버전(k01), 메모리 접근 묶기(k02), shared memory 타일(k03), 레지스터 타일(k04), cp.async 파이프라인(k05).
+- 같은 조건의 cuBLAS 비교: 클럭 고정, L2 비우기, 50회 중앙값, TF32 끔.
+- 단계마다 Nsight Compute 지표. 가설이 틀린 단계(k03이 1.32배에 그친 이유)도 그대로 적었습니다.
+- 모든 결과를 FP64 기준으로 검증했고, 크기가 타일에 안 맞는 모양도 확인합니다.
 
 <p align="center"><img src="docs/images/nanogemm_ladder.png" alt="다섯 단계 GFLOPS: k01 109, k02 808, k03 1,063, k04 8,231, k05 8,775 (cuBLAS 9,298의 94.4 %)" width="800"></p>
 
+## 한눈에 보는 구조
+
 <p align="center"><img src="docs/images/nanogemm_struct.png" alt="nanogemm 구조: C API와 PyTorch op → dispatch와 타일 표 → 커널 k01~k05 → 벤치 하니스, 클럭 고정 측정, Nsight 수집, FP64 기준 검증" width="900"></p>
 
-- 설계: `docs/specs/2026-11-08-nanogemm-g1-design.md` · 계획: `docs/plans/2026-11-08-nanogemm-g1.md`
-- 실행 기록(계획과 달라진 결정 R1~R16): `docs/LEDGER.md` · 미해결 현상: `docs/KNOWN_ISSUES.md`
-- 블로그용 Nsight 캡처: `docs/blog/2026-11-10_nsight_{k02_k03,k03_k04,k04_k05}/` (옛 기본 타일 128x128x8x8x8로 잰 것, 아래 참고)
-- 블로그 글(Tistory, 시리즈 "nanogemm"): [Part 01 측정 환경과 coalescing](https://thisish3.tistory.com/63) · [Part 02 shared memory tiling](https://thisish3.tistory.com/64) · [Part 03 register tiling](https://thisish3.tistory.com/65) · [Part 04 cp.async와 튜닝](https://thisish3.tistory.com/66)
+- [`csrc/`](csrc): C 인터페이스, 커널 k01~k05, PyTorch 등록
+- [`bench/`](bench): 검증과 측정을 하는 `nanogemm_bench`
+- [`scripts/`](scripts): 클럭 로그와 함께 재기, Nsight 수집, 타일 탐색
+- [`docs/`](docs): 설계, 실행 기록([LEDGER](docs/LEDGER.md)), [확인하지 않은 것](docs/KNOWN_ISSUES.md), 원본 측정 결과
+
+블로그(Tistory): [Part 01 측정 환경과 coalescing](https://thisish3.tistory.com/63) · [Part 02 shared memory tiling](https://thisish3.tistory.com/64) · [Part 03 register tiling](https://thisish3.tistory.com/65) · [Part 04 cp.async와 튜닝](https://thisish3.tistory.com/66)
 
 ## 결과 (RTX 3060 Ti, 4096³, SM 1500 MHz 고정)
 
