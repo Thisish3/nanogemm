@@ -13,6 +13,7 @@
 </p>
 
 <p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License"></a>
   <img src="https://img.shields.io/badge/CUDA-12.2-76B900" alt="CUDA 12.2">
   <img src="https://img.shields.io/badge/GPU-RTX%203060%20Ti%20(sm__86)-555" alt="RTX 3060 Ti">
   <img src="https://img.shields.io/badge/vs%20cuBLAS-94.4%25-2ea44f" alt="94.4% of cuBLAS">
@@ -179,3 +180,7 @@ docs/results/             원본 측정 출력(.ncu-repz는 git 제외)
 ## 확인하지 않은 것
 
 `docs/KNOWN_ISSUES.md`에 정리했다. 요약: k05와 cuBLAS의 남은 차이(4096³ 5.6 %, 8192³ 20 %)의 원인, 3회차 C 저장 float4가 느려진 이유, 디코드 모양(M=16)에서 cuBLAS와 차이가 큰 이유(31.7 %), 자동 선택 규칙이 남기는 약 7 % 손해(1536³ 등), 옛 기본 타일 k05에서 DRAM read가 2배가 된 이유.
+
+## 라이선스
+
+[Apache License 2.0](LICENSE)을 따릅니다.
