@@ -4,13 +4,13 @@ Tistory 글 "k03 shared tiling" 편에 쓸 그림. 2026-11-10 데스크탑(RTX 3
 
 ## 측정 조건
 
-- 리포트: `docs/results/2026-11-10_ncu_full_k02_k03.ncu-repz` (10 MB, `.gitignore`로 커밋 안 함. 데스크탑 `~/hxgemm`에 있음) / 텍스트 요약: `docs/results/2026-11-10_ncu_full_k02_k03.txt`(커밋됨)
+- 리포트: `docs/results/2026-11-10_ncu_full_k02_k03.ncu-repz` (10 MB, `.gitignore`로 커밋 안 함. 데스크탑 `~/nanogemm`에 있음) / 텍스트 요약: `docs/results/2026-11-10_ncu_full_k02_k03.txt`(커밋됨)
 - 명령(저장소 루트):
   ```bash
   NVIDIA_TF32_OVERRIDE=0 /usr/local/cuda/bin/ncu --clock-control none --set full -k regex:'k0[23]' \
     --metrics dram__bytes_read.sum,dram__bytes_write.sum,lts__t_bytes.sum,l1tex__t_bytes.sum,smsp__inst_executed.sum,l1tex__data_bank_conflicts_pipe_lsu_mem_shared.sum \
     -o docs/results/2026-11-10_ncu_full_k02_k03 -f \
-    ./build/hxgemm_bench --kernel k02 --kernel k03 --shape 2048,2048,2048 --check-only
+    ./build/nanogemm_bench --kernel k02 --kernel k03 --shape 2048,2048,2048 --check-only
   ```
 - 클럭: Windows 관리자 `nvidia-smi -lgc 1500,1500`으로 고정. ncu는 `--clock-control none`이라 모든 화면 상단에 "Data collection happened without GPU frequencies fixed by the profiler" 경고가 뜬다. 고정은 우리가 직접 했고, 리포트의 SM Frequency는 1.50 GHz다.
 - 벤치 숫자(같은 날, CUDA event 중앙값): k02 804.4 GFLOPS, k03 1063.1 GFLOPS, cuBLAS 8820.8 GFLOPS (`docs/results/2026-11-10_k03.csv`).

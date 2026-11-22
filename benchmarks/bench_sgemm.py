@@ -1,4 +1,4 @@
-"""Time hxgemm kernels and torch.matmul (TF32 off) with CUDA events.
+"""Time nanogemm kernels and torch.matmul (TF32 off) with CUDA events.
 
 Same method as the C++ bench: warm-up 10, then 50 individually timed runs, each preceded by
 an L2 flush (write 2 x L2 bytes). Writes a CSV and, when matplotlib is available, a PNG.
@@ -12,7 +12,7 @@ import statistics
 
 import torch
 
-import hxgemm_ext  # noqa: F401  registers torch.ops.hxgemm
+import nanogemm_ext  # noqa: F401  registers torch.ops.nanogemm
 
 torch.backends.cuda.matmul.allow_tf32 = False
 
@@ -70,7 +70,7 @@ def main():
         for kn in kernels:
             if kn <= 2 and max(m, n, k) > args.naive_max:
                 continue
-            fn = lambda kn=kn: torch.ops.hxgemm.sgemm_out(c, a, b, kn, [], 1.0, 0.0)
+            fn = lambda kn=kn: torch.ops.nanogemm.sgemm_out(c, a, b, kn, [], 1.0, 0.0)
             med, mn, mx = time_fn(fn, flush, args.warmup, args.iters)
             rows.append(dict(kernel=NAMES[kn], M=m, N=n, K=k, median_us=med, gflops=flops / med / 1e3,
                              pct_torch=100.0 * t_ref / med))
@@ -103,7 +103,7 @@ def main():
     ax.set_xscale("log", base=2)
     ax.set_xlabel("M = N = K")
     ax.set_ylabel("GFLOPS (FP32, TF32 off)")
-    ax.set_title("hxgemm vs torch.matmul, RTX 3060 Ti")
+    ax.set_title("nanogemm vs torch.matmul, RTX 3060 Ti")
     ax.legend()
     ax.grid(True, alpha=0.3)
     fig.savefig(args.out + ".png", dpi=120, bbox_inches="tight")

@@ -1,4 +1,4 @@
-# hxgemm G1: FP32 SGEMM을 단계별로 만들기
+# nanogemm G1: FP32 SGEMM을 단계별로 만들기
 
 - 작성일: 2026-11-08
 - 상태: 사용자 리뷰 대기
@@ -20,13 +20,13 @@
 ## 2. 저장소 구조
 
 ```
-hxgemm/
+nanogemm/
   csrc/
     gemm.h               C 인터페이스 (아래 3절)
     kernels/k01_naive.cu, k02_coalesce.cu, k03_smem_tile.cu, k04_reg_tile.cu, k05_double_buf.cu
     dispatch.cu          kernel 번호(+템플릿 설정) → 실행 설정 선택
-    torch_bindings.cpp   TORCH_LIBRARY로 torch.ops.hxgemm.sgemm 등록 (vLLM csrc/torch_bindings.cpp와 같은 방식)
-  bench/hxgemm_bench.cu  C++ 벤치: 검증 후 CUDA event로 측정, CSV 출력. ncu로 커널 하나만 잴 때 쓴다
+    torch_bindings.cpp   TORCH_LIBRARY로 torch.ops.nanogemm.sgemm 등록 (vLLM csrc/torch_bindings.cpp와 같은 방식)
+  bench/nanogemm_bench.cu  C++ 벤치: 검증 후 CUDA event로 측정, CSV 출력. ncu로 커널 하나만 잴 때 쓴다
   tests/test_sgemm.py    pytest: torch.matmul(TF32 끔)과 비교
   benchmarks/bench_sgemm.py  크기별 GFLOPS, cuBLAS 대비 %, 그래프
   scripts/ncu_collect.sh     정해 둔 섹션을 커널별로 수집
@@ -39,11 +39,11 @@ hxgemm/
 ## 3. 인터페이스
 
 ```c
-typedef enum { HXGEMM_K01 = 1, HXGEMM_K02, HXGEMM_K03, HXGEMM_K04, HXGEMM_K05 } hxgemm_kernel_t;
-typedef struct { int bm, bn, bk, tm, tn, stages; } hxgemm_tile_t;   /* k04/k05만 사용, 0이면 기본값 */
+typedef enum { NANOGEMM_K01 = 1, NANOGEMM_K02, NANOGEMM_K03, NANOGEMM_K04, NANOGEMM_K05 } nanogemm_kernel_t;
+typedef struct { int bm, bn, bk, tm, tn, stages; } nanogemm_tile_t;   /* k04/k05만 사용, 0이면 기본값 */
 
 /* C = alpha * A(MxK) * B(KxN) + beta * C(MxN), 모두 행 우선 FP32, 기기 메모리 포인터 */
-int hxgemm_sgemm(hxgemm_kernel_t k, hxgemm_tile_t t, int M, int N, int K, float alpha,
+int nanogemm_sgemm(nanogemm_kernel_t k, nanogemm_tile_t t, int M, int N, int K, float alpha,
                  const float* A, int lda, const float* B, int ldb, float beta, float* C, int ldc,
                  cudaStream_t stream);
 ```
@@ -55,9 +55,9 @@ int hxgemm_sgemm(hxgemm_kernel_t k, hxgemm_tile_t t, int M, int N, int K, float 
 
   ```c
   /* 모든 필드가 0인 타일을 넘겼을 때 실제로 쓰는 타일 */
-  hxgemm_tile_t hxgemm_default_tile(hxgemm_kernel_t k, int M, int N, int K);
+  nanogemm_tile_t nanogemm_default_tile(nanogemm_kernel_t k, int M, int N, int K);
   /* k04/k05에서 현재 장비가 지원하는 타일을 최대 cap개 채우고 개수를 돌려준다 */
-  int hxgemm_list_tiles(hxgemm_kernel_t k, hxgemm_tile_t* out, int cap);
+  int nanogemm_list_tiles(nanogemm_kernel_t k, nanogemm_tile_t* out, int cap);
   ```
 
   - k01~k03: 모두 0. k04: `{64,128,16,8,4,0}`(4096³ sweep 1위).

@@ -4,5 +4,5 @@ __pycache__/
 *.ncu-rep
 *.ncu-repz
 *.egg-info/
-hxgemm_ext*.so
+nanogemm_ext*.so
 .pytest_cache/

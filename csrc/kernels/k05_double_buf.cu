@@ -97,7 +97,7 @@ int run(int M, int N, int K, float alpha, const float* A, int lda, const float* 
         float beta, float* C, int ldc, cudaStream_t s) {
   constexpr int NT = (BM / TM) * (BN / TN);
   const int bytes = S * (BM * BK + BK * BN) * 4;
-  if (NT < 64 || NT > 1024 || bytes > smem_optin()) return HXGEMM_ETILE;
+  if (NT < 64 || NT > 1024 || bytes > smem_optin()) return NANOGEMM_ETILE;
   const bool vec = aligned16(A) && aligned16(B) && lda % 4 == 0 && ldb % 4 == 0;
   dim3 g((N + BN - 1) / BN, (M + BM - 1) / BM);
   if (vec) {
@@ -109,34 +109,34 @@ int run(int M, int N, int K, float alpha, const float* A, int lda, const float* 
     cudaFuncSetAttribute(k, cudaFuncAttributeMaxDynamicSharedMemorySize, bytes);
     k<<<g, NT, bytes, s>>>(M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
   }
-  return HXGEMM_OK;
+  return NANOGEMM_OK;
 }
 }  // namespace
 
-int launch_k05(hxgemm_tile_t t, int M, int N, int K, float alpha, const float* A, int lda,
+int launch_k05(nanogemm_tile_t t, int M, int N, int K, float alpha, const float* A, int lda,
                const float* B, int ldb, float beta, float* C, int ldc, cudaStream_t s) {
   if (t.bm == 0 && t.bn == 0 && t.bk == 0 && t.tm == 0 && t.tn == 0 && t.stages == 0)
-    t = hxgemm_default_tile(HXGEMM_K05, M, N, K);  // shape-dependent (LEDGER R16)
+    t = nanogemm_default_tile(NANOGEMM_K05, M, N, K);  // shape-dependent (LEDGER R16)
 #define HX_CASE(BM, BN, BK, TM, TN)                                                      \
   if (t.bm == BM && t.bn == BN && t.bk == BK && t.tm == TM && t.tn == TN) {             \
     if (t.stages == 2) return run<BM, BN, BK, TM, TN, 2>(M, N, K, alpha, A, lda, B, ldb, beta, C, ldc, s); \
     if (t.stages == 3) return run<BM, BN, BK, TM, TN, 3>(M, N, K, alpha, A, lda, B, ldb, beta, C, ldc, s); \
-    return HXGEMM_ETILE;                                                                 \
+    return NANOGEMM_ETILE;                                                                 \
   }
   HX_TILES(HX_CASE)
   HX_TILES_BIG(HX_CASE)
 #undef HX_CASE
-  return HXGEMM_ETILE;
+  return NANOGEMM_ETILE;
 }
 
-int list_k05(hxgemm_tile_t* out, int cap) {
+int list_k05(nanogemm_tile_t* out, int cap) {
   int n = 0;
   const int lim = smem_optin();
   for (int st = 2; st <= 3; ++st) {
 #define HX_ADD(BM, BN, BK, TM, TN)                                                         \
     if ((BM / TM) * (BN / TN) >= 64 && (BM / TM) * (BN / TN) <= 1024 &&                   \
         st * (BM * BK + BK * BN) * 4 <= lim && n < cap)                                    \
-      out[n++] = hxgemm_tile_t{BM, BN, BK, TM, TN, st};
+      out[n++] = nanogemm_tile_t{BM, BN, BK, TM, TN, st};
     HX_TILES(HX_ADD)
     HX_TILES_BIG(HX_ADD)
 #undef HX_ADD

@@ -1,17 +1,17 @@
-# hxgemm
+# nanogemm
 
 GPU에서 행렬곱(FP32 SGEMM, C = αAB + βC)을 가장 단순한 버전부터 다섯 단계로 직접 짜 보고, NVIDIA의 cuBLAS와 같은 조건에서 비교한 프로젝트입니다. RTX 3060 Ti, 4096×4096 행렬에서 마지막 버전은 8,775 GFLOPS로 cuBLAS의 94.4 %까지 왔습니다.
 
 단계마다 코드를 무엇을 바꿨는지, Nsight 지표가 어떻게 바뀌었는지, 그래서 속도가 얼마나 달라졌는지를 함께 남겼습니다. 처음 세운 가설이 틀린 단계(shared memory tiling이 1.32배에 그친 이유)도 그대로 적었습니다.
 
-<p align="center"><img src="docs/images/hxgemm_ladder.png" alt="다섯 단계 GFLOPS: k01 109, k02 808, k03 1,063, k04 8,231, k05 8,775 (cuBLAS 9,298의 94.4 %)" width="800"></p>
+<p align="center"><img src="docs/images/nanogemm_ladder.png" alt="다섯 단계 GFLOPS: k01 109, k02 808, k03 1,063, k04 8,231, k05 8,775 (cuBLAS 9,298의 94.4 %)" width="800"></p>
 
-<p align="center"><img src="docs/images/hxgemm_struct.png" alt="hxgemm 구조: C API와 PyTorch op → dispatch와 타일 표 → 커널 k01~k05 → 벤치 하니스, 클럭 고정 측정, Nsight 수집, FP64 기준 검증" width="900"></p>
+<p align="center"><img src="docs/images/nanogemm_struct.png" alt="nanogemm 구조: C API와 PyTorch op → dispatch와 타일 표 → 커널 k01~k05 → 벤치 하니스, 클럭 고정 측정, Nsight 수집, FP64 기준 검증" width="900"></p>
 
-- 설계: `docs/specs/2026-11-08-hxgemm-g1-design.md` · 계획: `docs/plans/2026-11-08-hxgemm-g1.md`
+- 설계: `docs/specs/2026-11-08-nanogemm-g1-design.md` · 계획: `docs/plans/2026-11-08-nanogemm-g1.md`
 - 실행 기록(계획과 달라진 결정 R1~R16): `docs/LEDGER.md` · 미해결 현상: `docs/KNOWN_ISSUES.md`
 - 블로그용 Nsight 캡처: `docs/blog/2026-11-10_nsight_{k02_k03,k03_k04,k04_k05}/` (옛 기본 타일 128x128x8x8x8로 잰 것, 아래 참고)
-- 블로그 글(Tistory, 시리즈 "hxgemm"): [Part 01 측정 환경과 coalescing](https://thisish3.tistory.com/63) · [Part 02 shared memory tiling](https://thisish3.tistory.com/64) · [Part 03 register tiling](https://thisish3.tistory.com/65) · [Part 04 cp.async와 튜닝](https://thisish3.tistory.com/66)
+- 블로그 글(Tistory, 시리즈 "nanogemm"): [Part 01 측정 환경과 coalescing](https://thisish3.tistory.com/63) · [Part 02 shared memory tiling](https://thisish3.tistory.com/64) · [Part 03 register tiling](https://thisish3.tistory.com/65) · [Part 04 cp.async와 튜닝](https://thisish3.tistory.com/66)
 
 ## 결과 (RTX 3060 Ti, 4096³, SM 1500 MHz 고정)
 
@@ -95,31 +95,31 @@ k01~k04·cuBLAS는 `docs/results/2026-11-10_final.csv`, k05(추가 개선 후)�
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build
 ./build/check_args                       # 인자 검사
 ./build/devinfo                          # 장비 정보
-NVIDIA_TF32_OVERRIDE=0 ./build/hxgemm_bench --kernel all --shape 4096,4096,4096
-./build/hxgemm_bench --kernel k05 --sweep --shape 1000,1000,1000 --offset 1 --check-only
-./build/hxgemm_bench --kernel k05 --tile 128,128,32,8,4,2 --tile 128,256,16,16,8,3 --shape 8192,8192,8192   # --tile 여러 번
+NVIDIA_TF32_OVERRIDE=0 ./build/nanogemm_bench --kernel all --shape 4096,4096,4096
+./build/nanogemm_bench --kernel k05 --sweep --shape 1000,1000,1000 --offset 1 --check-only
+./build/nanogemm_bench --kernel k05 --tile 128,128,32,8,4,2 --tile 128,256,16,16,8,3 --shape 8192,8192,8192   # --tile 여러 번
 
 # 클럭 로그와 함께 측정 / Nsight 수집 / 타일 탐색
 bash scripts/measure.sh <date> --kernel all --squares 256:8192
 bash scripts/ncu_collect.sh <date> k05 && python3 scripts/ncu_summary.py <date> k05 > docs/results/<date>_ncu_summary.csv
 bash scripts/sweep.sh <date>
 
-# PyTorch 확장 (venv: ~/venvs/hxgemm, LEDGER R9)
-CUDA_HOME=/usr/local/cuda ~/venvs/hxgemm/bin/pip install -e . --no-build-isolation
-NVIDIA_TF32_OVERRIDE=0 ~/venvs/hxgemm/bin/python -m pytest tests -q
-NVIDIA_TF32_OVERRIDE=0 ~/venvs/hxgemm/bin/python benchmarks/bench_sgemm.py --out docs/results/<date>_py_bench
+# PyTorch 확장 (venv: ~/venvs/nanogemm, LEDGER R9)
+CUDA_HOME=/usr/local/cuda ~/venvs/nanogemm/bin/pip install -e . --no-build-isolation
+NVIDIA_TF32_OVERRIDE=0 ~/venvs/nanogemm/bin/python -m pytest tests -q
+NVIDIA_TF32_OVERRIDE=0 ~/venvs/nanogemm/bin/python benchmarks/bench_sgemm.py --out docs/results/<date>_py_bench
 ```
 
-Python에서는 `import hxgemm_ext` 후 `torch.ops.hxgemm.sgemm(a, b, kernel, [])` 또는 `torch.ops.hxgemm.sgemm_out(c, a, b, kernel, tile, alpha, beta)`.
+Python에서는 `import nanogemm_ext` 후 `torch.ops.nanogemm.sgemm(a, b, kernel, [])` 또는 `torch.ops.nanogemm.sgemm_out(c, a, b, kernel, tile, alpha, beta)`.
 
 ## 구조
 
 ```
-csrc/gemm.h               C 인터페이스 (hxgemm_sgemm, hxgemm_default_tile, hxgemm_list_tiles)
+csrc/gemm.h               C 인터페이스 (nanogemm_sgemm, nanogemm_default_tile, nanogemm_list_tiles)
 csrc/dispatch.cu          인자 검사, K=0 경로
 csrc/kernels/             k01~k05, scale(K=0), launch(커널 선택), tiles.h(타일 목록), cp_async.cuh
-csrc/torch_bindings.cpp   TORCH_LIBRARY(hxgemm) 등록
-bench/                    hxgemm_bench(검증·측정·sweep), check_args, harness.h
+csrc/torch_bindings.cpp   TORCH_LIBRARY(nanogemm) 등록
+bench/                    nanogemm_bench(검증·측정·sweep), check_args, harness.h
 tests/, benchmarks/       pytest, Python 벤치
 scripts/                  measure.sh, ncu_collect.sh, ncu_summary.py, sweep.sh
 tools/                    devinfo.cu, nsight_gui.py(WSLg Nsight GUI 캡처)

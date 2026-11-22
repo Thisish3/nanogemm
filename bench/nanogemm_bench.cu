@@ -1,4 +1,4 @@
-// hxgemm_bench: verify each kernel against a reference, then time it with CUDA events.
+// nanogemm_bench: verify each kernel against a reference, then time it with CUDA events.
 // Reference: CPU FP64 when max(M,N,K) <= 512, otherwise cuBLAS (CUBLAS_DEFAULT_MATH).
 // A kernel that fails verification is never timed.
 #include <cstdio>
@@ -25,7 +25,7 @@ struct Opts {
   std::vector<Shape> shapes;
   bool have_tile = false, sweep = false, check_only = false, nan_c = false;
   int offset = 0;  // shift A/B/C by this many floats and add it to lda/ldb/ldc
-  std::vector<hxgemm_tile_t> tiles;  // --tile may be given several times
+  std::vector<nanogemm_tile_t> tiles;  // --tile may be given several times
   int warmup = 10, iters = 50;
   float alpha = 1.f, beta = 0.f;
   std::string csv;
@@ -33,7 +33,7 @@ struct Opts {
 
 [[noreturn]] void usage(const char* msg) {
   std::fprintf(stderr,
-               "error: %s\nusage: hxgemm_bench --kernel k01|k02|k03|k04|k05|cublas|all ... "
+               "error: %s\nusage: nanogemm_bench --kernel k01|k02|k03|k04|k05|cublas|all ... "
                "--shape M,N,K ... | --squares LO:HI  [--tile bm,bn,bk,tm,tn,stages] [--sweep] "
                "[--warmup 10] [--iters 50] [--alpha 1] [--beta 0] [--check-only] [--nan-c] "
                "[--offset 1] [--csv path]\n",
@@ -54,7 +54,7 @@ void add_kernel(Opts& o, const std::string& s) {
     o.kernels.push_back(k);
   };
   if (s == "all") {
-    for (int k = HXGEMM_K01; k <= HXGEMM_K05; ++k) push(k);
+    for (int k = NANOGEMM_K01; k <= NANOGEMM_K05; ++k) push(k);
     push(KCUBLAS);
   } else if (s == "cublas") {
     push(KCUBLAS);
@@ -83,7 +83,7 @@ Opts parse(int argc, char** argv) {
       if (std::sscanf(val(), "%d:%d", &lo, &hi) != 2 || lo <= 0 || hi < lo) usage("bad --squares");
       for (int n = lo; n <= hi; n *= 2) o.shapes.push_back({n, n, n});
     } else if (a == "--tile") {
-      hxgemm_tile_t t{};
+      nanogemm_tile_t t{};
       if (std::sscanf(val(), "%d,%d,%d,%d,%d,%d", &t.bm, &t.bn, &t.bk, &t.tm, &t.tn, &t.stages) != 6)
         usage("bad --tile");
       o.tiles.push_back(t);
@@ -109,24 +109,24 @@ Opts parse(int argc, char** argv) {
   return o;
 }
 
-std::string tile_str(int k, const hxgemm_tile_t& t) {
-  if (k != HXGEMM_K04 && k != HXGEMM_K05) return "-";
+std::string tile_str(int k, const nanogemm_tile_t& t) {
+  if (k != NANOGEMM_K04 && k != NANOGEMM_K05) return "-";
   char b[64];
   std::snprintf(b, sizeof b, "%dx%dx%dx%dx%dx%d", t.bm, t.bn, t.bk, t.tm, t.tn, t.stages);
   return b;
 }
 
-std::vector<hxgemm_tile_t> tiles_for(const Opts& o, int k, const Shape& s) {
-  if (k != HXGEMM_K04 && k != HXGEMM_K05) return {hxgemm_tile_t{0, 0, 0, 0, 0, 0}};
+std::vector<nanogemm_tile_t> tiles_for(const Opts& o, int k, const Shape& s) {
+  if (k != NANOGEMM_K04 && k != NANOGEMM_K05) return {nanogemm_tile_t{0, 0, 0, 0, 0, 0}};
   if (o.sweep) {
-    std::vector<hxgemm_tile_t> v(512);
-    int n = hxgemm_list_tiles(static_cast<hxgemm_kernel_t>(k), v.data(), int(v.size()));
+    std::vector<nanogemm_tile_t> v(512);
+    int n = nanogemm_list_tiles(static_cast<nanogemm_kernel_t>(k), v.data(), int(v.size()));
     v.resize(n > 0 ? n : 0);
     return v;  // empty when the kernel offers no tiles yet
   }
   if (o.have_tile) return o.tiles;
   // Library default for this shape, spelled out so the CSV records the tile that actually ran.
-  return {hxgemm_default_tile(static_cast<hxgemm_kernel_t>(k), s.M, s.N, s.K)};
+  return {nanogemm_default_tile(static_cast<nanogemm_kernel_t>(k), s.M, s.N, s.K)};
 }
 
 struct Row {
@@ -269,7 +269,7 @@ int main(int argc, char** argv) {
     }
 
     for (int k : o.kernels) {
-      for (const hxgemm_tile_t& t : tiles_for(o, k, s)) {
+      for (const nanogemm_tile_t& t : tiles_for(o, k, s)) {
         Row r;
         r.kernel = kname(k);
         r.tile = k == KCUBLAS ? "-" : tile_str(k, t);
@@ -281,15 +281,15 @@ int main(int argc, char** argv) {
           launch = run_cublas;
           launch();
         } else {
-          const auto kk = static_cast<hxgemm_kernel_t>(k);
-          rc = hxgemm_sgemm(kk, t, M, N, K, o.alpha, dA, lda, dB, ldb, o.beta, dC, ldc, 0);
+          const auto kk = static_cast<nanogemm_kernel_t>(k);
+          rc = nanogemm_sgemm(kk, t, M, N, K, o.alpha, dA, lda, dB, ldb, o.beta, dC, ldc, 0);
           launch = [&, kk, t] {
-            int e = hxgemm_sgemm(kk, t, M, N, K, o.alpha, dA, lda, dB, ldb, o.beta, dC, ldc, 0);
+            int e = nanogemm_sgemm(kk, t, M, N, K, o.alpha, dA, lda, dB, ldb, o.beta, dC, ldc, 0);
             if (e != 0) { std::fprintf(stderr, "launch failed rc=%d\n", e); std::exit(2); }
           };
         }
-        if (rc == HXGEMM_ETILE) r.status = "unsupported";
-        else if (rc == HXGEMM_EINVAL) r.status = "einval";
+        if (rc == NANOGEMM_ETILE) r.status = "unsupported";
+        else if (rc == NANOGEMM_EINVAL) r.status = "einval";
         else if (rc > 0) r.status = std::string("cuda:") + cudaGetErrorString(cudaError_t(rc));
         if (rc == 0) {
           cudaError_t e = cudaDeviceSynchronize();
@@ -311,7 +311,7 @@ int main(int argc, char** argv) {
         if (!r.pass) ++failures;
         print_row(r, csv);
       }
-      if ((k == HXGEMM_K04 || k == HXGEMM_K05) && o.sweep && tiles_for(o, k, s).empty()) {
+      if ((k == NANOGEMM_K04 || k == NANOGEMM_K05) && o.sweep && tiles_for(o, k, s).empty()) {
         Row r;
         r.kernel = kname(k);
         r.tile = "sweep";

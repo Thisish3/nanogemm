@@ -4,13 +4,13 @@ Tistory 글 "k04 register tiling과 occupancy" 편에 쓸 그림. 2026-11-10 데
 
 ## 측정 조건
 
-- 리포트: `docs/results/2026-11-10_ncu_full_k03_k04.ncu-repz`(`.gitignore`, 데스크탑 `~/hxgemm`에만 있음) / 텍스트: `docs/results/2026-11-10_ncu_full_k03_k04.txt`
+- 리포트: `docs/results/2026-11-10_ncu_full_k03_k04.ncu-repz`(`.gitignore`, 데스크탑 `~/nanogemm`에만 있음) / 텍스트: `docs/results/2026-11-10_ncu_full_k03_k04.txt`
 - 명령(저장소 루트):
   ```bash
   NVIDIA_TF32_OVERRIDE=0 /usr/local/cuda/bin/ncu --clock-control none --set full -k regex:'k0[34]' \
     --metrics dram__bytes_read.sum,dram__bytes_write.sum,lts__t_bytes.sum,l1tex__t_bytes.sum,smsp__inst_executed.sum,l1tex__data_bank_conflicts_pipe_lsu_mem_shared.sum,l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum,l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_st.sum \
     -o docs/results/2026-11-10_ncu_full_k03_k04 -f \
-    ./build/hxgemm_bench --kernel k03 --kernel k04 --shape 4096,4096,4096 --check-only
+    ./build/nanogemm_bench --kernel k03 --kernel k04 --shape 4096,4096,4096 --check-only
   ```
 - 클럭은 Windows 관리자 `nvidia-smi -lgc 1500,1500`(ncu `--clock-control none`). k04는 기본 타일 BM=BN=128, BK=8, TM=TN=8, 256 스레드, float4 경로.
 - 벤치 숫자(같은 날, CUDA event 중앙값, `docs/results/2026-11-10_k04.csv`): k03 1047.2 GFLOPS(cuBLAS 대비 11.3 %), **k04 6603.6 GFLOPS(71.0 %)**, cuBLAS 9297.6 GFLOPS.

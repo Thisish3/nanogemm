@@ -10,7 +10,7 @@ Tistory 글 "k05 cp.async" 편에 쓸 그림. 2026-11-10 데스크탑(RTX 3060 T
   NVIDIA_TF32_OVERRIDE=0 /usr/local/cuda/bin/ncu --clock-control none --set full -k regex:'k0[45]' \
     --metrics dram__bytes_read.sum,dram__bytes_write.sum,lts__t_bytes.sum,l1tex__t_bytes.sum,smsp__inst_executed.sum,l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum,l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_st.sum \
     -o docs/results/2026-11-10_ncu_full_k04_k05 -f \
-    ./build/hxgemm_bench --kernel k04 --kernel k05 --shape 4096,4096,4096 --check-only
+    ./build/nanogemm_bench --kernel k04 --kernel k05 --shape 4096,4096,4096 --check-only
   ```
 - 클럭은 Windows 관리자 `nvidia-smi -lgc 1500,1500`(ncu `--clock-control none`). 두 커널 모두 기본 타일 128×128×8, TM=TN=8, 256 스레드. k05는 2단(stages=2), float4 + `cp.async.cg` 16 B 경로.
 - 벤치 숫자(같은 날, CUDA event 중앙값, `docs/results/2026-11-10_k05.csv`): k04 6589.6 GFLOPS(cuBLAS 대비 70.9 %), **k05 2단 7458.5 GFLOPS(80.2 %)**, cuBLAS 9298.1 GFLOPS. 3단은 7478.1 GFLOPS(80.4 %, `2026-11-10_k05_s3.csv`).

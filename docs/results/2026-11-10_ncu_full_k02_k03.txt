@@ -1,4 +1,4 @@
-[8396] hxgemm_bench@127.0.0.1
+[8396] nanogemm_bench@127.0.0.1
   k02_coalesce(int, int, int, float, const float *, int, const float *, int, float, float *, int) (64, 64, 1)x(32, 32, 1), Context 1, Stream 7, Device 0, CC 8.6
     Warning: Data collection happened without fixed GPU frequencies. Profiling results may be inconsistent.
     Section: Command line profiler metrics

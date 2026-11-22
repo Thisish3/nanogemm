@@ -88,7 +88,7 @@ int run(int M, int N, int K, float alpha, const float* A, int lda, const float* 
         float beta, float* C, int ldc, cudaStream_t s) {
   constexpr int NT = (BM / TM) * (BN / TN);
   const int bytes = (BM * BK + BK * BN) * 4;
-  if (NT < 64 || NT > 1024 || bytes > smem_optin()) return HXGEMM_ETILE;
+  if (NT < 64 || NT > 1024 || bytes > smem_optin()) return NANOGEMM_ETILE;
   const bool vec = aligned16(A) && aligned16(B) && lda % 4 == 0 && ldb % 4 == 0;
   dim3 g((N + BN - 1) / BN, (M + BM - 1) / BM);
   if (vec) {
@@ -100,29 +100,29 @@ int run(int M, int N, int K, float alpha, const float* A, int lda, const float* 
     cudaFuncSetAttribute(k, cudaFuncAttributeMaxDynamicSharedMemorySize, bytes);
     k<<<g, NT, bytes, s>>>(M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
   }
-  return HXGEMM_OK;
+  return NANOGEMM_OK;
 }
 }  // namespace
 
-int launch_k04(hxgemm_tile_t t, int M, int N, int K, float alpha, const float* A, int lda,
+int launch_k04(nanogemm_tile_t t, int M, int N, int K, float alpha, const float* A, int lda,
                const float* B, int ldb, float beta, float* C, int ldc, cudaStream_t s) {
   if (t.bm == 0 && t.bn == 0 && t.bk == 0 && t.tm == 0 && t.tn == 0 && t.stages == 0)
-    t = hxgemm_default_tile(HXGEMM_K04, M, N, K);  // 4096^3 sweep winner (LEDGER R10)
-  if (t.stages != 0) return HXGEMM_ETILE;
+    t = nanogemm_default_tile(NANOGEMM_K04, M, N, K);  // 4096^3 sweep winner (LEDGER R10)
+  if (t.stages != 0) return NANOGEMM_ETILE;
 #define HX_CASE(BM, BN, BK, TM, TN)                                            \
   if (t.bm == BM && t.bn == BN && t.bk == BK && t.tm == TM && t.tn == TN)     \
     return run<BM, BN, BK, TM, TN>(M, N, K, alpha, A, lda, B, ldb, beta, C, ldc, s);
   HX_TILES(HX_CASE)
 #undef HX_CASE
-  return HXGEMM_ETILE;
+  return NANOGEMM_ETILE;
 }
 
-int list_k04(hxgemm_tile_t* out, int cap) {
+int list_k04(nanogemm_tile_t* out, int cap) {
   int n = 0;
   const int lim = smem_optin();
 #define HX_ADD(BM, BN, BK, TM, TN)                                                         \
   if ((BM / TM) * (BN / TN) >= 64 && (BM / TM) * (BN / TN) <= 1024 &&                     \
-      (BM * BK + BK * BN) * 4 <= lim && n < cap) out[n++] = hxgemm_tile_t{BM, BN, BK, TM, TN, 0};
+      (BM * BK + BK * BN) * 4 <= lim && n < cap) out[n++] = nanogemm_tile_t{BM, BN, BK, TM, TN, 0};
   HX_TILES(HX_ADD)
 #undef HX_ADD
   return n;

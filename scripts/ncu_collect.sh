@@ -16,7 +16,7 @@ NVIDIA_TF32_OVERRIDE=0 "$NCU" --clock-control none -k "regex:${NAME[$k]}" --laun
   --section SpeedOfLight --section MemoryWorkloadAnalysis --section ComputeWorkloadAnalysis \
   --section Occupancy --section LaunchStats --section WarpStateStats --section SourceCounters \
   --metrics dram__bytes_read.sum,lts__t_bytes.sum,l1tex__t_bytes.sum,smsp__inst_executed.sum,l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_ld.sum,l1tex__data_bank_conflicts_pipe_lsu_mem_shared_op_st.sum,smsp__average_warp_latency_issue_stalled_long_scoreboard.ratio,smsp__average_warp_latency_issue_stalled_mio_throttle.ratio,smsp__average_warp_latency_issue_stalled_lg_throttle.ratio,smsp__average_warp_latency_issue_stalled_barrier.ratio \
-  -o "$out" -f ./build/hxgemm_bench "${args[@]}" > "${out}_ncu.log" 2>&1
+  -o "$out" -f ./build/nanogemm_bench "${args[@]}" > "${out}_ncu.log" 2>&1
 rep=$(ls "${out}".ncu-rep* | head -1)
 "$NCU" --import "$rep" --csv --page details --print-units base > "${out}_ncu.csv"
 echo "$k: $(grep -c . "${out}_ncu.csv") rows -> ${out}_ncu.csv (report $rep)"
